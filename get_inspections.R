@@ -20,7 +20,7 @@ all_facilities <- all_facilities |>
 
 # launch selenium web browser
 rD <- rsDriver(browser="firefox", 
-               port=4553L, 
+               port=4541L, 
                chromever = NULL)
 
 remDr <- rD[["client"]]
@@ -34,6 +34,8 @@ violations_list <- list()
 # If they have more than one permit, we'll record the url and the skip the loop iteration
 # and then go back a second time to loop through just those URLS
 multiple_permit_urls <- c()
+
+multiple_permit_ids <- c()
 
 # loop through all facilities
 # to get inspections and violations
@@ -57,6 +59,15 @@ page_html <- remDr$getPageSource()[[1]] |>
 # extract all the tables from the html
 tables <- page_html |> html_table()
 
+# I guess some facilities might disappear in between pulling facilities and pulling inspections?
+# we'll just skip those for now
+
+if(length(tables) == 0){
+  
+  print(paste0("Skipping ", all_facilities[i,]))
+  next
+}
+
 # if there's only one column it means there are multiple permits
 if(ncol(tables[[2]]) == 1){
   
@@ -69,6 +80,11 @@ if(ncol(tables[[2]]) == 1){
   
   # record the links for later
   multiple_permit_urls <- c(multiple_permit_urls, links)
+  
+  # record the facility id for facilities with multiple permits
+  # the facility id needs to be repeated for the number of permits at the facility
+  multiple_permit_ids <- c(multiple_permit_ids, rep(all_facilities$facility_id[i], 
+                                                    times= length(links)))
   
   # skip the current iteration
   next
@@ -211,5 +227,16 @@ violations_list[[i]] <- facility_violations
 # create final data frames from the lists
 all_violations_df <- violations_list |> bind_rows()
 
+all_violations_df |> write.csv("data/all_violations.csv", row.names = FALSE)
+
 
 all_inspections_df <- inspections_list |> bind_rows()
+
+all_inspections_df |> write.csv("data/all_inspections.csv", row.names = FALSE)
+
+
+multiple_permit_facilities_df <- data.frame(facility_id = multiple_permit_ids, 
+                                         link = multiple_permit_urls)
+
+
+multiple_permit_facilities_df |> write.csv("data/multiple_permit_facilities.csv", row.names = FALSE)
