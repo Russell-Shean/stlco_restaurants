@@ -27,7 +27,21 @@ all_inspections_df <-read.csv("data/all_inspections.csv")
 mp_inspections_df <-read.csv("data/mp_inspections.csv")
 
 all_inspections_df <- all_inspections_df |> 
-  bind_rows(mp_inspections_df)
+  bind_rows(mp_inspections_df) |> 
+  
+  # extract address components
+  mutate(city = str_squish(str_extract(address2, ".*(?=,)")), # everything before comma
+         state = str_squish(str_extract(address2, "(?<=,).*?(?=\\d+)")), # between comma and a number
+         zip_code = str_squish(str_extract(address2, "[\\d\\-]+")), # after a comma and two capital letters 
+         ) 
+
+
+
+
+
+
+
+## Process violations ----------------------------------------------------
 
 all_violations_df <-read.csv("data/all_violations.csv")
 mp_violations_df  <-read.csv("data/mp_violations.csv")
@@ -82,18 +96,18 @@ for(i in 1:nrow(code_references_dictionary)){
 }
 
 
-# build a vector of code fragments to remove
-code_fragments <- code_references_dictionary$complete_text |> 
-                   str_extract_all("(\\(\\d-\\d{3}.\\d{2}\\)).*?(\\(\\d-\\d{3}.\\d{2}\\))") |> 
-                    unlist() |>
-                    unique()
+
 
 
 
 
 #remaining_laws2 <- remaining_laws
 # now we remove the remaining laws stuff from below
-for(law in remaining_laws2){
+
+
+source("food_code_snippets.R")
+
+for(law in food_code_snippets$text){
   
   
   all_violations_df <- all_violations_df |> 
@@ -105,33 +119,7 @@ for(law in remaining_laws2){
   
 }
 
-for(law in remaining_laws3){
-  
-  
-  all_violations_df <- all_violations_df |> 
-    mutate(violation_text_nolaws = str_remove_all(str_squish(violation_text_nolaws),
-                                                   stringr::regex(law,
-                                                                  literal=TRUE) ))
-  
-  
-  
-}
-
-
-# This is an iterative manual mess that I'll use to create a vector of code references
-
-remaining_laws <-     all_violations_df |> 
-  pull(violation_text_nolaws) |>
-  str_extract_all("\\(\\d-\\d{3}.\\d{2}\\).*" ) |>
-    unlist() |>
-   str_squish( ) |> 
-   unique() 
-
-
-remaining_laws |>
-  str_extract_all("\\(\\d-\\d{3}.\\d{2}\\)" ) |> unlist()  |> table()
 
 
 
-remaining_laws |> str_subset("2-102.20")
 
